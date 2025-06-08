@@ -1,0 +1,120 @@
+# requirements.txt
+aiohttp==3.9.1
+beautifulsoup4==4.12.2
+selenium==4.16.0
+fake-useragent==1.4.0
+python-dotenv==1.0.0
+asyncio==3.4.3
+lxml==4.9.3
+requests==2.31.0
+
+# Optional for enhanced functionality
+presidio-analyzer==2.2.33  # For advanced PII detection
+openai==1.6.1  # For LLM integration
+redis==5.0.1  # For caching
+
+# Development dependencies
+pytest==7.4.3
+pytest-asyncio==0.21.1
+black==23.12.0
+flake8==6.1.0
+
+# Setup Instructions
+
+## 1. Create Project Directory
+```bash
+mkdir privacy-scanner
+cd privacy-scanner
+```
+
+## 2. Create Virtual Environment
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
+
+## 3. Install Dependencies
+```bash
+pip install -r requirements.txt
+```
+
+## 4. Install Chrome Driver for Selenium
+```bash
+# On Ubuntu/Debian
+sudo apt-get update
+sudo apt-get install chromium-chromedriver
+
+# On macOS
+brew install chromedriver
+
+# On Windows
+# Download from https://chromedriver.chromium.org/
+```
+
+## 5. Create Project Structure
+```bash
+mkdir scrapers
+touch scrapers/__init__.py
+```
+
+## 6. Environment Variables (optional)
+Create a .env file for API keys:
+```
+GOOGLE_API_KEY=your_key_here
+GOOGLE_CSE_ID=your_cse_id_here
+BING_API_KEY=your_key_here
+OPENAI_API_KEY=your_key_here
+```
+
+## 7. Basic Usage Example
+```python
+import asyncio
+from scrapers import PrivacyScanner
+
+async def main():
+    scanner = PrivacyScanner()
+    
+    user_info = {
+        'name': 'Your Name',
+        'email': 'your.email@example.com',
+        'phone': '555-123-4567'
+    }
+    
+    results = await scanner.scan(user_info)
+    print(results['summary'])
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+## 8. Running Tests
+```bash
+python scrapers/test_scanner.py
+```
+
+## Important Notes:
+
+1. **Ethical Usage**: This tool should only be used to check your own information or with explicit permission.
+
+2. **Rate Limiting**: The tool includes delays between requests to avoid being blocked. Don't remove these.
+
+3. **Proxy Support**: For production use, consider adding proxy support to avoid IP bans.
+
+4. **API Keys**: Some features work better with API keys (Google Custom Search, etc.)
+
+5. **Legal Compliance**: Always respect robots.txt and website terms of service.
+
+6. **Performance**: The scanner uses async operations for better performance but be mindful of the load on target websites.
+
+## Troubleshooting:
+
+1. **Selenium Issues**: Make sure Chrome/Chromium and chromedriver versions match
+
+2. **SSL Errors**: You might need to install certificates:
+   ```bash
+   pip install certifi
+   ```
+
+3. **Encoding Issues**: Ensure your system supports UTF-8 encoding
+
+4. **Memory Usage**: For large scans, monitor memory usage as Selenium can be resource-intensive
