@@ -1,4 +1,3 @@
-# scrapers/data_extractor.py
 import re
 from typing import Dict, List, Any, Tuple
 from bs4 import BeautifulSoup

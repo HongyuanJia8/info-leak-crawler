@@ -1,4 +1,3 @@
-# scrapers/utils.py
 import re
 import hashlib
 import random

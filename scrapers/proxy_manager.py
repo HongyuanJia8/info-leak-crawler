@@ -1,4 +1,3 @@
-# scrapers/proxy_manager.py
 import random
 import asyncio
 from typing import List, Optional, Dict

@@ -1,4 +1,3 @@
-# scrapers/test_scanner.py
 """
 Test script for the privacy scanner
 """

@@ -1,6 +1,7 @@
-# scrapers/privacy_scanner.py
 import asyncio
 import logging
+import re  # Added this import
+import aiohttp  # Added this import
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 from collections import defaultdict

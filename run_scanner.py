@@ -15,11 +15,11 @@ async def main():
         'name': input("Full Name: ").strip() or None,
         'email': input("Email Address: ").strip() or None,
         'phone': input("Phone Number: ").strip() or None,
-        'address': input("Address: ").strip() or None
+        'address': input("Address (or press Enter to skip): ").strip() or None
     }
     
-    # Remove empty values
-    user_info = {k: v for k, v in user_info.items() if v}
+    # Remove empty values and filter out "none" entries
+    user_info = {k: v for k, v in user_info.items() if v and v.lower() != 'none'}
     
     if not user_info:
         print("Error: Please enter at least one piece of information")

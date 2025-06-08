@@ -82,30 +82,32 @@ class TwitterScraper(BaseScraper):
         return []
 
 class LinkedInScraper(BaseScraper):
-    """LinkedIn search scraper"""
+    """LinkedIn search scraper using Bing"""
     
     BASE_URL = "https://www.linkedin.com/search/results/people/"
     
     def __init__(self, config=None):
         super().__init__(config)
-        self.use_selenium = True  # LinkedIn requires JavaScript
+        # Import here to avoid circular imports
+        from .search_engines import BingScraper
+        self.BingScraper = BingScraper
     
     async def search(self, query: str, pages: int = 2) -> List[Dict[str, Any]]:
-        """Search LinkedIn profiles using Google"""
+        """Search LinkedIn profiles using Bing"""
         results = []
         
-        # Search LinkedIn via Google (more reliable without login)
-        google_query = f"site:linkedin.com/in/ {query}"
+        # Search LinkedIn via Bing (more reliable than Google)
+        bing_query = f"site:linkedin.com/in/ {query}"
         
-        # Reuse Google search functionality
-        google_scraper = GoogleScraper(self.config)
+        # Use Bing search
+        bing_scraper = self.BingScraper(self.config)
         
         try:
-            async with google_scraper:
-                search_results = await google_scraper.search(google_query, pages=2)
+            async with bing_scraper:
+                search_results = await bing_scraper.search(bing_query, pages=pages)
                 
                 for result in search_results:
-                    # Transform Google results to LinkedIn format
+                    # Transform Bing results to LinkedIn format
                     linkedin_result = {
                         'source': 'linkedin',
                         'type': 'profile',
@@ -270,6 +272,12 @@ class RedditScraper(BaseScraper):
     
     BASE_URL = "https://www.reddit.com/search"
     
+    def __init__(self, config=None):
+        super().__init__(config)
+        # Import GoogleScraper here to avoid circular imports
+        from .search_engines import GoogleScraper
+        self.GoogleScraper = GoogleScraper
+    
     async def search(self, query: str, pages: int = 3) -> List[Dict[str, Any]]:
         """Search Reddit posts and comments"""
         results = []
@@ -282,19 +290,55 @@ class RedditScraper(BaseScraper):
         
         url = f"{self.BASE_URL}.json?{urlencode(params)}"
         
-        # Reddit API returns JSON
+        # Reddit API requires a unique User-Agent
         headers = self.get_headers()
-        headers['Accept'] = 'application/json'
+        headers.update({
+            'User-Agent': 'PrivacyScanner/1.0 (by /u/your_username)',  # Reddit requires this format
+            'Accept': 'application/json'
+        })
         
         try:
             async with self.session.get(url, headers=headers) as response:
                 if response.status == 200:
                     data = await response.json()
                     results = self._parse_reddit_json(data)
+                elif response.status == 403:
+                    logger.warning("Reddit access forbidden - using Google search instead")
+                    # Fallback to Google search for Reddit
+                    google_query = f"site:reddit.com {query}"
+                    google_scraper = self.GoogleScraper(self.config)
+                    async with google_scraper:
+                        google_results = await google_scraper.search(google_query, pages=2)
+                        for g_result in google_results:
+                            reddit_result = {
+                                'source': 'reddit',
+                                'type': 'post',
+                                'url': g_result.get('url', ''),
+                                'title': g_result.get('title', ''),
+                                'snippet': g_result.get('snippet', '')
+                            }
+                            results.append(reddit_result)
                 else:
                     logger.warning(f"Reddit returned status {response.status}")
         except Exception as e:
             logger.error(f"Error searching Reddit: {str(e)}")
+            # Fallback to Google search
+            try:
+                google_query = f"site:reddit.com {query}"
+                google_scraper = self.GoogleScraper(self.config)
+                async with google_scraper:
+                    google_results = await google_scraper.search(google_query, pages=2)
+                    for g_result in google_results:
+                        reddit_result = {
+                            'source': 'reddit',
+                            'type': 'post',
+                            'url': g_result.get('url', ''),
+                            'title': g_result.get('title', ''),
+                            'snippet': g_result.get('snippet', '')
+                        }
+                        results.append(reddit_result)
+            except Exception as e2:
+                logger.error(f"Google fallback also failed: {str(e2)}")
         
         return results
     
@@ -337,16 +381,14 @@ class SocialMediaAggregator:
     def __init__(self, config=None):
         self.config = config or Config()
         self.platforms = {
-            'twitter': TwitterScraper(config),
-            'linkedin': LinkedInScraper(config),
             'github': GitHubScraper(config),
-            'reddit': RedditScraper(config)
+            'linkedin': LinkedInScraper(config)
         }
     
     async def search_all(self, query: str, platforms: List[str] = None) -> List[Dict[str, Any]]:
         """Search multiple social media platforms"""
         if platforms is None:
-            platforms = ['github', 'reddit']  # Default platforms (easier to scrape)
+            platforms = ['github', 'linkedin']  # Default platforms
         
         all_results = []
         

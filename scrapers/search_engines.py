@@ -5,9 +5,10 @@ from typing import Dict, List, Any, Optional
 from urllib.parse import quote_plus, urlencode
 from bs4 import BeautifulSoup
 import logging
-from .config import Config
+
 from .base import BaseScraper
 from .utils import Utils
+from .config import Config  # Add this import
 
 logger = logging.getLogger(__name__)
 
@@ -224,7 +225,7 @@ class BaiduScraper(BaseScraper):
         # In a real implementation, you would follow the redirect
         # For now, we'll just return the Baidu URL
         return baidu_url
-    
+
 class DuckDuckGoScraper(BaseScraper):
     """DuckDuckGo search scraper"""
     
@@ -290,7 +291,6 @@ class SearchEngineAggregator:
         self.engines = {
             'google': GoogleScraper(config),
             'bing': BingScraper(config),
-            'baidu': BaiduScraper(config),
             'duckduckgo': DuckDuckGoScraper(config)
         }
     
