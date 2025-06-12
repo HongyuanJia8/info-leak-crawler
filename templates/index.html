@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Leak Scanner</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔍 Privacy Leak Scanner</h1>
+            <p class="subtitle">Check if your personal information is exposed online</p>
+        </header>
+
+        <div class="scanner-section">
+            <div class="input-card">
+                <h2>Enter Your Information</h2>
+                <p class="info-text">Provide at least one piece of information to scan</p>
+                
+                <form id="scanForm">
+                    <div class="form-group">
+                        <label for="name">Full Name</label>
+                        <input type="text" id="name" name="name" placeholder="John Doe">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="email">Email Address</label>
+                        <input type="email" id="email" name="email" placeholder="john.doe@example.com">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="phone">Phone Number</label>
+                        <input type="tel" id="phone" name="phone" placeholder="555-123-4567">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="address">Address</label>
+                        <input type="text" id="address" name="address" placeholder="New York, NY">
+                    </div>
+                    
+                    <button type="submit" id="scanButton" class="scan-button">
+                        <span class="button-text">Start Scan</span>
+                        <span class="loading-spinner" style="display: none;">
+                            <svg class="spinner" viewBox="0 0 24 24">
+                                <circle class="spinner-circle" cx="12" cy="12" r="10" fill="none" stroke-width="3"></circle>
+                            </svg>
+                        </span>
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div id="resultsSection" class="results-section" style="display: none;">
+            <div class="ai-analysis-card">
+                <h2>🤖 AI Analysis</h2>
+                <div class="leak-percentage">
+                    <div class="percentage-circle">
+                        <svg viewBox="0 0 36 36" class="circular-chart">
+                            <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                            <path class="circle" id="percentageCircle" stroke-dasharray="0, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                            <text x="18" y="20.35" class="percentage-text" id="percentageText">0%</text>
+                        </svg>
+                    </div>
+                    <div class="analysis-text">
+                        <h3>Data Leak Risk</h3>
+                        <p id="aiAnalysis">Analyzing...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="summary-card">
+                <h2>📊 Scan Summary</h2>
+                <div class="summary-stats">
+                    <div class="stat">
+                        <span class="stat-value" id="totalResults">0</span>
+                        <span class="stat-label">Total Results</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-value" id="scanTime">0s</span>
+                        <span class="stat-label">Scan Time</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-value" id="riskLevel">-</span>
+                        <span class="stat-label">Risk Level</span>
+                    </div>
+                </div>
+                
+                <div class="risk-breakdown">
+                    <div class="risk-item high">
+                        <span class="risk-label">High Risk</span>
+                        <span class="risk-count" id="highRisk">0</span>
+                    </div>
+                    <div class="risk-item medium">
+                        <span class="risk-label">Medium Risk</span>
+                        <span class="risk-count" id="mediumRisk">0</span>
+                    </div>
+                    <div class="risk-item low">
+                        <span class="risk-label">Low Risk</span>
+                        <span class="risk-count" id="lowRisk">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="detailed-results">
+                <h2>🔍 Detailed Findings</h2>
+                <div id="detailedResultsList"></div>
+            </div>
+
+            <div class="recommendations-card">
+                <h2>💡 Recommendations</h2>
+                <ul id="recommendationsList"></ul>
+            </div>
+
+            <button class="new-scan-button" onclick="resetForm()">Start New Scan</button>
+        </div>
+
+        <div id="errorMessage" class="error-message" style="display: none;"></div>
+    </div>
+
+    <footer>
+        <p>Your privacy matters. This tool helps you understand your digital footprint.</p>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html> 
