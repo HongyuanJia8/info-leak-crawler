@@ -135,3 +135,33 @@ class Utils:
     def hash_content(content: str) -> str:
         """Generate hash for content deduplication"""
         return hashlib.md5(content.encode('utf-8')).hexdigest()
+
+    @staticmethod
+    def extract_username_from_query(query: str) -> Optional[str]:
+        """
+        Extracts a potential GitHub username from a search query string.
+        Assumes username is a single word, possibly preceded by '@' or part of a GitHub URL.
+        """
+        # Case 1: Query contains "github.com/username"
+        match_url = re.search(r'github\.com/([a-zA-Z0-9_-]+)', query, re.IGNORECASE)
+        if match_url:
+            return match_url.group(1)
+
+        # Case 2: Query contains "@username"
+        match_at = re.search(r'@([a-zA-Z0-9_-]+)', query)
+        if match_at:
+            return match_at.group(1)
+
+        query_parts = query.split()
+        if len(query_parts) == 1:  # If query is just one word, treat it as potential username
+            return query_parts[0]
+
+        # Look for "username github" or "github username"
+        for i, part in enumerate(query_parts):
+            if part.lower() == 'github':
+                if i > 0:  # "username github"
+                    return query_parts[i - 1]
+                elif i < len(query_parts) - 1:  # "github username"
+                    return query_parts[i + 1]
+
+        return None

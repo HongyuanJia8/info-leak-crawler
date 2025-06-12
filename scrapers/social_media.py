@@ -6,6 +6,9 @@ from typing import Dict, List, Any, Optional
 from urllib.parse import quote_plus, urlencode
 from bs4 import BeautifulSoup
 import logging
+import time
+
+import aiohttp
 
 from .base import BaseScraper
 from .utils import Utils
@@ -139,133 +142,226 @@ class LinkedInScraper(BaseScraper):
         """Parse results - not used for LinkedIn as we use Selenium"""
         return []
 
+
 class GitHubScraper(BaseScraper):
     """GitHub search scraper"""
-    
+
     BASE_URL = "https://github.com/search"
     API_URL = "https://api.github.com/search"
-    
+
     async def search(self, query: str, pages: int = 3) -> List[Dict[str, Any]]:
         """Search GitHub for code and users"""
         results = []
-        
+
         # Search in code
         code_results = await self._search_code(query, pages)
         results.extend(code_results)
-        
+
         # Search in users
         user_results = await self._search_users(query)
         results.extend(user_results)
-        
+
+        username_from_query = Utils.extract_username_from_query(query)
+        if username_from_query:
+            api_user_profile = await self._fetch_user_api_profile(username_from_query)
+            if api_user_profile:
+                results.append(api_user_profile)
+
         return results
-    
+
     async def _search_code(self, query: str, pages: int) -> List[Dict[str, Any]]:
         """Search in GitHub code"""
         results = []
-        
+
         for page in range(1, pages + 1):
             params = {
                 'q': query,
                 'type': 'code',
                 'p': page
             }
-            
+
             url = f"{self.BASE_URL}?{urlencode(params)}"
-            
+
             if page > 1:
                 await asyncio.sleep(self.config.DEFAULT_DELAY)
-            
+
             html = await self.fetch(url)
             if html:
                 page_results = self._parse_code_results(html)
                 results.extend(page_results)
             else:
                 break
-        
+
         return results
-    
+
+    async def _search_code_web(self, query: str, pages: int) -> List[Dict[str, Any]]:
+        results = []
+        for page in range(1, pages + 1):
+            params = {
+                'q': query,
+                'type': 'code',
+                'p': page
+            }
+            url = f"{self.BASE_WEB_URL}?{urlencode(params)}"
+            if page > 1:
+                await asyncio.sleep(self.config.DEFAULT_DELAY)
+            html = await self.fetch(url)
+            if html:
+                page_results = self._parse_code_results(html)
+                results.extend(page_results)
+            else:
+                break
+        return results
+
     async def _search_users(self, query: str) -> List[Dict[str, Any]]:
         """Search GitHub users"""
         results = []
-        
+
         params = {
             'q': query,
             'type': 'users'
         }
-        
+
         url = f"{self.BASE_URL}?{urlencode(params)}"
         html = await self.fetch(url)
-        
+
         if html:
             results = self._parse_user_results(html)
-        
+
         return results
-    
+
+    async def _search_users_web(self, query: str) -> List[Dict[str, Any]]:
+        results = []
+        params = {
+            'q': query,
+            'type': 'users'
+        }
+        url = f"{self.BASE_WEB_URL}?{urlencode(params)}"
+        html = await self.fetch(url)
+        if html:
+            results = self._parse_user_results(html)
+        return results
+
     def _parse_code_results(self, html: str) -> List[Dict[str, Any]]:
         """Parse GitHub code search results"""
         soup = BeautifulSoup(html, 'html.parser')
         results = []
-        
+
         # Find all code result divs
         for div in soup.find_all('div', class_='code-list-item'):
             result = {
                 'source': 'github',
                 'type': 'code'
             }
-            
+
             # Extract file path and repository
             title_elem = div.find('a', class_='link-gray-dark')
             if title_elem:
                 result['title'] = title_elem.text.strip()
                 result['url'] = f"https://github.com{title_elem['href']}"
-            
+
             # Extract code snippet
             code_elem = div.find('div', class_='code-list-item-code')
             if code_elem:
                 result['snippet'] = code_elem.text.strip()
-            
+
             # Extract repository info
             repo_elem = div.find('a', class_='link-gray')
             if repo_elem:
                 result['repository'] = repo_elem.text.strip()
-            
+
             if result.get('url'):
                 results.append(result)
-        
+
         return results
-    
+
     def _parse_user_results(self, html: str) -> List[Dict[str, Any]]:
         """Parse GitHub user search results"""
         soup = BeautifulSoup(html, 'html.parser')
         results = []
-        
+
         # Find all user results
         for div in soup.find_all('div', class_='user-list-item'):
             result = {
                 'source': 'github',
                 'type': 'user'
             }
-            
+
             # Extract username and profile URL
             user_elem = div.find('a', class_='color-text-primary')
             if user_elem:
                 result['title'] = f"GitHub User: {user_elem.text.strip()}"
                 result['url'] = f"https://github.com{user_elem['href']}"
                 result['username'] = user_elem.text.strip()
-            
+
             # Extract user details
             details_elem = div.find('div', class_='user-list-info')
             if details_elem:
                 result['snippet'] = details_elem.text.strip()
-            
+
             if result.get('url'):
                 results.append(result)
-        
+
         return results
-    
+
     def parse_results(self, html: str) -> List[Dict[str, Any]]:
         """Generic parse method - not used as we have specific parsers"""
         return []
+
+    async def _api_request(self, endpoint: str, params: Optional[Dict[str, Any]] = None) -> Any:
+        url = f"{self.BASE_API_URL}{endpoint}"
+        headers = {'Accept': 'application/vnd.github.v3+json'}
+
+        if self.github_token:
+            headers['Authorization'] = f"token {self.github_token}"
+
+        try:
+            async with self.session.get(url, headers=headers, params=params) as response:
+                if response.status == 403 and 'X-RateLimit-Remaining' in response.headers:
+                    remaining = int(response.headers.get('X-RateLimit-Remaining', 0))
+                    if remaining == 0:
+                        reset_time = int(response.headers.get('X-RateLimit-Reset', time.time() + 60))
+                        wait_seconds = max(0, reset_time - time.time()) + 1
+                        logger.warning(f"GitHub API rate limit exceeded. Waiting {wait_seconds:.0f}s")
+                        await asyncio.sleep(wait_seconds)
+                        async with self.session.get(url, headers=headers, params=params) as retry_response:
+                            retry_response.raise_for_status()
+                            return await retry_response.json()
+
+                response.raise_for_status()
+                return await response.json()
+        except aiohttp.ClientResponseError as e:
+            logger.error(f"GitHub API response error for {url}: {e.status} - {e.message}")
+            return None
+        except asyncio.TimeoutError:
+            logger.error(f"GitHub API request timeout for {url}")
+            return None
+        except Exception as e:
+            logger.error(f"Error making GitHub API request to {url}: {str(e)}")
+            return None
+
+    async def _fetch_user_api_profile(self, username: str) -> Optional[Dict[str, Any]]:
+        endpoint = f"/users/{username}"
+        data = await self._api_request(endpoint)
+        if data:
+            return {
+                "source": "github",
+                "type": "api_profile",
+                "url": data.get("html_url"),
+                "title": f"GitHub API Profile: {data.get('login')}",
+                "snippet": data.get("bio") or data.get("company") or data.get("location"),
+                "login": data.get("login"),
+                "name": data.get("name"),
+                "company": data.get("company"),
+                "location": data.get("location"),
+                "email": data.get("email"),
+                "bio": data.get("bio"),
+                "public_repos_count": data.get("public_repos"),
+                "followers_count": data.get("followers"),
+                "following_count": data.get("following"),
+                "created_at": data.get("created_at"),
+                "updated_at": data.get("updated_at")
+            }
 
 class RedditScraper(BaseScraper):
     """Reddit search scraper"""
@@ -382,7 +478,9 @@ class SocialMediaAggregator:
         self.config = config or Config()
         self.platforms = {
             'github': GitHubScraper(config),
-            'linkedin': LinkedInScraper(config)
+            'linkedin': LinkedInScraper(config),
+            'twitter': TwitterScraper(config),
+            'reddit': RedditScraper(config)
         }
     
     async def search_all(self, query: str, platforms: List[str] = None) -> List[Dict[str, Any]]:
